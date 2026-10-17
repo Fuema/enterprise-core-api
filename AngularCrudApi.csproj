@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Local secrets (Jwt:SigningKey) live outside the repo: dotnet user-secrets set "Jwt:SigningKey" "<64+ random chars>" -->
+    <UserSecretsId>bb0633b0-8e8c-424f-8493-31826bb8cbc0</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.13" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Idempotent schema scripts, applied at startup when Database:ApplyBootstrapScripts=true -->
+    <EmbeddedResource Include="Database\Scripts\*.sql" />
+    <!-- Pre-adaptation copies of the original files (reference only, not compiled) -->
+    <Compile Remove="_original\**" />
+    <None Remove="_original\**" />
+  </ItemGroup>
+
+</Project>

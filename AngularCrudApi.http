@@ -1,0 +1,55 @@
+# REST Client / Visual Studio .http requests against the local API.
+# Run "Login" first; the other requests reuse its access token. The refresh cookie
+# is stored by the client automatically.
+@host = http://localhost:7077/api
+
+# @name login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{ "username": "admin", "password": "admin" }
+
+###
+@token = {{login.response.body.$.accessToken}}
+
+GET {{host}}/auth/me
+Authorization: Bearer {{token}}
+
+###
+GET {{host}}/employees?page=1&pageSize=5&sort=lastName.asc&search=
+Authorization: Bearer {{token}}
+
+###
+GET {{host}}/lookups/countries
+Authorization: Bearer {{token}}
+
+###
+GET {{host}}/countries?page=1&pageSize=10&sort=name.asc
+Authorization: Bearer {{token}}
+
+###
+GET {{host}}/cities?stateId=1&sort=name.asc
+Authorization: Bearer {{token}}
+
+###
+# Self-service signup (signs the new user in)
+POST {{host}}/auth/register
+Content-Type: application/json
+
+{ "username": "jane.doe", "displayName": "Jane Doe", "email": "jane.doe@example.test",
+  "password": "Passw0rd!", "confirmPassword": "Passw0rd!" }
+
+###
+# Validation errors come back as ProblemDetails with camelCase keys
+POST {{host}}/employees
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "firstName": "", "lastName": "Test", "dateOfBirth": "2999-01-01", "email": "bad", "gender": "X",
+  "countryId": 0, "stateId": 0, "cityId": 0, "address": "", "pincode": "12" }
+
+###
+POST {{host}}/auth/refresh
+
+###
+POST {{host}}/auth/logout
