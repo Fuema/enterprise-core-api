@@ -1,7 +1,8 @@
 # Enterprise Core API (AngularCrudApi)
 
 ASP.NET Core 10 minimal API + SQL Server backend for the **enterprise-core-app** React template.
-It implements the template's backend contract (see `agents.md` → *Backend Contract* in the frontend repo).
+It implements the template's backend contract (see `agents.md` → *Backend Contract* in the frontend repo:
+https://github.com/Fuema/enterprise-core-app). Contract changes are committed in both repositories.
 
 ## Run locally
 
@@ -56,6 +57,9 @@ VITE_ENABLE_MOCKS=false
 | PUT | `/api/employees/{id}` → 200 + entity | `employees:write` |
 | DELETE | `/api/employees/{id}` → 204 | `employees:delete` |
 | POST | `/api/employees/bulk-delete` `{ids}` → `{deletedCount}` | `employees:delete` |
+| GET | `/api/users?page&pageSize&search&sort&isActive` → `{id,username,displayName,email,roles[],permissions[],isActive,createdAtUtc}` | `users:read` |
+| GET | `/api/users/{id}`, `/api/users/permissions` → `{scopes}` | `users:read` |
+| PUT | `/api/users/{id}` `{displayName,email,roles[],permissions[],isActive}` → 200 + user; no self-deactivation, cannot drop own `users:write`; deactivation revokes refresh tokens | `users:write` |
 | GET | `/api/lookups/countries`, `/api/lookups/countries/{id}/states`, `/api/lookups/states/{id}/cities` → `[{id,name}]` (dropdowns) | signed in |
 | GET / GET {id} | `/api/countries?page&pageSize&search&sort` → `{id,name,stateCount,employeeCount}` | `countries:read` |
 | POST / PUT / DELETE | `/api/countries[/{id}]` `{name}`; delete → 409 while states or employees use it | `countries:write` / `countries:delete` |
@@ -65,6 +69,10 @@ VITE_ENABLE_MOCKS=false
 | POST / PUT / DELETE | `/api/cities[/{id}]` `{name,stateId}` (country copied from the state); delete → 409 while employees use it | `cities:write` / `cities:delete` |
 
 Names are unique per parent (country name globally, state per country, city per state) → field error on `name`.
+
+### User administration
+Accounts come from signup (or the seed) and are managed at `/api/users`: grant permissions, edit roles, deactivate (never delete).
+Permission changes apply from the user's next access token (≤ 15 min) or sign-in.
 
 ### Signup
 `Signup` section: `Enabled` (default `true`), `DefaultRoles` (`User`), `DefaultPermissions` (`employees:read`).
@@ -85,4 +93,3 @@ errors use camelCase keys (`errors.email`, `errors.cityId`...) that the React fo
    `.WithValidation<TRequest>()` on bodies, a `SortMap<TResponse>` allow-list and `ToPagedAsync`.
 4. Add the permission scopes to `Auth/Permissions.cs` (`All`) and to the users that need them.
 
-`_original/` holds the pre-adaptation files for reference; it is not compiled and can be deleted.

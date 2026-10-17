@@ -19,9 +19,6 @@
   <ItemGroup>
     <!-- Idempotent schema scripts, applied at startup when Database:ApplyBootstrapScripts=true -->
     <EmbeddedResource Include="Database\Scripts\*.sql" />
-    <!-- Pre-adaptation copies of the original files (reference only, not compiled) -->
-    <Compile Remove="_original\**" />
-    <None Remove="_original\**" />
   </ItemGroup>
 
 </Project>

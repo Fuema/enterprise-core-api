@@ -113,6 +113,7 @@ app.MapEmployeeEndpoints();
 app.MapCountryEndpoints();
 app.MapStateEndpoints();
 app.MapCityEndpoints();
+app.MapUserEndpoints();
 app.MapLookupEndpoints();
 
 // Development: create auth tables / unique email index and seed demo users (see appsettings.Development.json).

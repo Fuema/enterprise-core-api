@@ -34,13 +34,31 @@ public static class Permissions
     public const string CitiesWrite = "cities:write";
     public const string CitiesDelete = "cities:delete";
 
+    /// <summary>View accounts and their access (the admin screen).</summary>
+    public const string UsersRead = "users:read";
+    /// <summary>Change an account's name, email, roles, permissions and active flag.</summary>
+    public const string UsersWrite = "users:write";
+
     public static readonly string[] All =
     [
         EmployeesRead, EmployeesWrite, EmployeesDelete,
         CountriesRead, CountriesWrite, CountriesDelete,
         StatesRead, StatesWrite, StatesDelete,
         CitiesRead, CitiesWrite, CitiesDelete,
+        UsersRead, UsersWrite,
     ];
+
+    /// <summary>
+    /// True for a grantable value: "*", a scope from <see cref="All"/>, or "&lt;resource&gt;:*"
+    /// for a resource that has scopes.
+    /// </summary>
+    public static bool IsGrantable(string value)
+    {
+        if (value == "*" || All.Contains(value)) return true;
+        if (!value.EndsWith(":*", StringComparison.Ordinal)) return false;
+        var resource = value[..^2];
+        return All.Any(scope => scope.StartsWith(resource + ":", StringComparison.Ordinal));
+    }
 
     /// <summary>
     /// Same rules as the frontend (src/lib/permissions.ts):
