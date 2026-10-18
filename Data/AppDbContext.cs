@@ -15,6 +15,11 @@ public class AppDbContext : DbContext
     public DbSet<City> Cities => Set<City>();
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
+    public DbSet<UserPermission> UserPermissions => Set<UserPermission>();
+    public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -36,8 +41,41 @@ public class AppDbContext : DbContext
             entity.Property(u => u.DisplayName).HasMaxLength(100);
             entity.Property(u => u.Email).HasMaxLength(256);
             entity.Property(u => u.PasswordHash).HasMaxLength(512);
-            entity.Property(u => u.Roles).HasMaxLength(400);
-            entity.Property(u => u.Permissions).HasMaxLength(1000);
+            entity.Property(u => u.SecurityStamp).HasMaxLength(64);
+            entity.HasMany(u => u.UserRoles).WithOne(ur => ur.User).HasForeignKey(ur => ur.UserId);
+            entity.HasMany(u => u.DirectPermissions).WithOne().HasForeignKey(p => p.UserId);
+        });
+
+        // Tables created by Database/Scripts/003_rbac_security_audit.sql.
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.ToTable("Roles");
+            entity.HasIndex(r => r.Name).IsUnique().HasDatabaseName("UX_Roles_Name");
+            entity.Property(r => r.Name).HasMaxLength(64);
+            entity.Property(r => r.Description).HasMaxLength(200);
+            entity.HasMany(r => r.Permissions).WithOne().HasForeignKey(p => p.RoleId);
+            entity.HasMany(r => r.UserRoles).WithOne(ur => ur.Role).HasForeignKey(ur => ur.RoleId);
+        });
+        modelBuilder.Entity<RolePermission>(entity =>
+        {
+            entity.ToTable("RolePermissions").HasKey(p => new { p.RoleId, p.Permission });
+            entity.Property(p => p.Permission).HasMaxLength(100);
+        });
+        modelBuilder.Entity<UserRole>(entity => entity.ToTable("UserRoles").HasKey(ur => new { ur.UserId, ur.RoleId }));
+        modelBuilder.Entity<UserPermission>(entity =>
+        {
+            entity.ToTable("UserPermissions").HasKey(p => new { p.UserId, p.Permission });
+            entity.Property(p => p.Permission).HasMaxLength(100);
+        });
+        modelBuilder.Entity<AuditEntry>(entity =>
+        {
+            entity.ToTable("AuditLog");
+            entity.Property(a => a.ActorName).HasMaxLength(100);
+            entity.Property(a => a.Action).HasMaxLength(64);
+            entity.Property(a => a.TargetType).HasMaxLength(32);
+            entity.Property(a => a.TargetId).HasMaxLength(64);
+            entity.Property(a => a.TargetName).HasMaxLength(100);
+            entity.Property(a => a.IpAddress).HasMaxLength(64);
         });
 
         modelBuilder.Entity<RefreshToken>(entity =>
@@ -45,6 +83,8 @@ public class AppDbContext : DbContext
             entity.ToTable("RefreshTokens");
             entity.HasIndex(t => t.TokenHash).IsUnique().HasDatabaseName("UX_RefreshTokens_TokenHash");
             entity.Property(t => t.TokenHash).HasMaxLength(64).IsUnicode(false).IsFixedLength();
+            entity.Property(t => t.IpAddress).HasMaxLength(64);
+            entity.Property(t => t.UserAgent).HasMaxLength(256);
             entity.HasOne<AppUser>().WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade);
         });
     }

@@ -1,3 +1,4 @@
+using AngularCrudApi.Auth;
 using AngularCrudApi.Data;
 using AngularCrudApi.Models;
 using Microsoft.EntityFrameworkCore;
@@ -11,12 +12,15 @@ namespace AngularCrudApi.Endpoint;
 ///   GET /api/lookups/countries
 ///   GET /api/lookups/countries/{countryId}/states
 ///   GET /api/lookups/states/{stateId}/cities
+///   GET /api/lookups/permissions -> { scopes }   every grantable permission (Users and Roles editors)
 /// </summary>
 public static class LookupEndpoints
 {
     public static void MapLookupEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/lookups").WithTags("Lookups").RequireAuthorization();
+
+        group.MapGet("permissions", () => Results.Ok(new PermissionCatalogResponse(Permissions.All)));
 
         group.MapGet("countries", async (AppDbContext db, CancellationToken ct) =>
             Results.Ok(await db.Countries.AsNoTracking()

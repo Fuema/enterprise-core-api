@@ -10,6 +10,12 @@ public static class AppClaims
     public const string Email = "email";
     public const string Role = "role";
     public const string Permission = "permission";
+    /// <summary>The user's security stamp when the token was issued (see SessionValidator).</summary>
+    public const string SecurityStamp = "stamp";
+    /// <summary>Session (refresh-token chain) the access token belongs to.</summary>
+    public const string SessionId = "sid";
+    /// <summary>Present when an administrator reset the password: only change-password is allowed.</summary>
+    public const string MustChangePassword = "pwd_change";
 }
 
 /// <summary>
@@ -36,8 +42,15 @@ public static class Permissions
 
     /// <summary>View accounts and their access (the admin screen).</summary>
     public const string UsersRead = "users:read";
-    /// <summary>Change an account's name, email, roles, permissions and active flag.</summary>
+    /// <summary>Create accounts; change name, email, roles, grants, active flag; reset passwords; unlock; revoke sessions.</summary>
     public const string UsersWrite = "users:write";
+
+    public const string RolesRead = "roles:read";
+    public const string RolesWrite = "roles:write";
+    public const string RolesDelete = "roles:delete";
+
+    /// <summary>Read the security audit log (it is append-only: no write scope).</summary>
+    public const string AuditRead = "audit:read";
 
     public static readonly string[] All =
     [
@@ -46,6 +59,8 @@ public static class Permissions
         StatesRead, StatesWrite, StatesDelete,
         CitiesRead, CitiesWrite, CitiesDelete,
         UsersRead, UsersWrite,
+        RolesRead, RolesWrite, RolesDelete,
+        AuditRead,
     ];
 
     /// <summary>
@@ -87,6 +102,12 @@ public sealed class PermissionHandler : AuthorizationHandler<PermissionRequireme
 {
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
     {
+        // A user who must change their password gets nothing but change-password / me / logout
+        // (those endpoints only require authentication, not a permission policy).
+        if (context.User.HasClaim(claim => claim.Type == AppClaims.MustChangePassword))
+        {
+            return Task.CompletedTask;
+        }
         var granted = context.User.FindAll(AppClaims.Permission).Select(claim => claim.Value);
         if (Permissions.Satisfies(granted, requirement.Permission))
         {

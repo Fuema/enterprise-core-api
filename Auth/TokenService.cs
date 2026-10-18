@@ -16,17 +16,24 @@ public sealed class TokenService(IOptions<JwtOptions> options, JwtSigningKey sig
 
     public TimeSpan RefreshTokenLifetime => TimeSpan.FromDays(_options.RefreshTokenDays);
 
-    public string CreateAccessToken(AppUser user)
+    /// <summary>
+    /// Claims: sub, name, email, role*, permission* (effective), stamp (security stamp), sid (session),
+    /// pwd_change (only when the password must be changed).
+    /// </summary>
+    public string CreateAccessToken(AppUser user, UserAccess access, Guid sessionId)
     {
         var claims = new List<Claim>
         {
             new(AppClaims.Subject, user.Id.ToString()),
             new(AppClaims.Name, user.DisplayName),
+            new(AppClaims.SecurityStamp, user.SecurityStamp),
+            new(AppClaims.SessionId, sessionId.ToString("N")),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
         };
         if (!string.IsNullOrWhiteSpace(user.Email)) claims.Add(new Claim(AppClaims.Email, user.Email));
-        claims.AddRange(user.GetRoles().Select(role => new Claim(AppClaims.Role, role)));
-        claims.AddRange(user.GetPermissions().Select(permission => new Claim(AppClaims.Permission, permission)));
+        if (user.MustChangePassword) claims.Add(new Claim(AppClaims.MustChangePassword, "1"));
+        claims.AddRange(access.Roles.Select(role => new Claim(AppClaims.Role, role)));
+        claims.AddRange(access.Permissions.Select(permission => new Claim(AppClaims.Permission, permission)));
 
         var now = DateTime.UtcNow;
         return _handler.CreateToken(new SecurityTokenDescriptor

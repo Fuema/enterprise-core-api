@@ -47,6 +47,13 @@ var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<Jw
 var signingKey = JwtSigningKey.Create(jwtOptions, builder.Environment);
 builder.Services.AddSingleton(signingKey);
 builder.Services.AddScoped<TokenService>();
+builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection(SecurityOptions.SectionName));
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<AccessService>();
+builder.Services.AddScoped<AuditService>();
+builder.Services.AddScoped<SessionManager>();
+builder.Services.AddSingleton<SessionValidator>();
 builder.Services.Configure<SignupOptions>(builder.Configuration.GetSection(SignupOptions.SectionName));
 
 builder.Services
@@ -67,6 +74,12 @@ builder.Services
             ClockSkew = TimeSpan.FromSeconds(30),
             NameClaimType = AppClaims.Name,
             RoleClaimType = AppClaims.Role,
+        };
+        // Access changes (roles, grants, deactivation, password, revoked session) apply on the next request.
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+                context.HttpContext.RequestServices.GetRequiredService<SessionValidator>().ValidateAsync(context),
         };
     });
 
@@ -114,6 +127,8 @@ app.MapCountryEndpoints();
 app.MapStateEndpoints();
 app.MapCityEndpoints();
 app.MapUserEndpoints();
+app.MapRoleEndpoints();
+app.MapAuditEndpoints();
 app.MapLookupEndpoints();
 
 // Development: create auth tables / unique email index and seed demo users (see appsettings.Development.json).

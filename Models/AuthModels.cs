@@ -12,10 +12,11 @@ public class LoginRequest
 }
 
 /// <summary>Principal returned by /api/auth/login and /api/auth/me (matches the React authUserSchema).</summary>
-public sealed record AuthUserResponse(string Id, string DisplayName, string? Email, string[] Roles, string[] Permissions)
+public sealed record AuthUserResponse(
+    string Id, string DisplayName, string? Email, string[] Roles, string[] Permissions, bool MustChangePassword)
 {
-    public static AuthUserResponse From(AppUser user) =>
-        new(user.Id.ToString(), user.DisplayName, user.Email, user.GetRoles(), user.GetPermissions());
+    public static AuthUserResponse From(AppUser user, Auth.UserAccess access) =>
+        new(user.Id.ToString(), user.DisplayName, user.Email, access.Roles, access.Permissions, user.MustChangePassword);
 }
 
 public sealed record LoginResponse(string AccessToken, AuthUserResponse User);
@@ -45,3 +46,22 @@ public class RegisterRequest
     [Required(ErrorMessage = "Confirm your password"), Compare(nameof(Password), ErrorMessage = "Passwords do not match")]
     public string ConfirmPassword { get; set; } = string.Empty;
 }
+
+/// <summary>Body of POST /api/auth/change-password.</summary>
+public class ChangePasswordRequest
+{
+    [Required(ErrorMessage = "Current password is required")]
+    public string CurrentPassword { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "New password is required"),
+     StringLength(100, MinimumLength = 8, ErrorMessage = "Use at least 8 characters")]
+    public string NewPassword { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Confirm your new password"), Compare(nameof(NewPassword), ErrorMessage = "Passwords do not match")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
+/// <summary>One signed-in device/browser (a chain of rotated refresh tokens).</summary>
+public sealed record SessionResponse(
+    string Id, DateTime StartedAtUtc, DateTime LastActiveAtUtc, DateTime ExpiresAtUtc,
+    string? IpAddress, string? UserAgent, bool Current);

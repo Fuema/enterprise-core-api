@@ -70,33 +70,46 @@ public static partial class DatabaseBootstrapper
     }
 
     /// <summary>
-    /// Demo accounts mirroring the React mock backend (password = username).
-    /// Development only; never enable SeedDevelopmentUsers in production.
+    /// Demo roles and accounts mirroring the React mock backend (password = username).
+    /// Development only; never enable SeedDevelopmentUsers in production. Runs only on an empty AppUsers table,
+    /// after the scripts (003 has already created the Administrator system role).
     /// </summary>
-    /// <summary>Demo "manager": edits employees and cities, can only look at countries and states.</summary>
-    private const string ManagerPermissions =
-        $"{Perm.EmployeesRead},{Perm.EmployeesWrite},{Perm.CountriesRead},{Perm.StatesRead},{Perm.CitiesRead},{Perm.CitiesWrite}";
-
     private static async Task SeedDevelopmentUsersAsync(AppDbContext db, ILogger logger)
     {
         if (await db.Users.AnyAsync()) return;
 
+        var administrator = await EnsureRoleAsync(db, Role.AdministratorName, "Full access to every feature, including future ones", isSystem: true, ["*"]);
+        var hrManager = await EnsureRoleAsync(db, "HR Manager", "Manages employees and cities; reads countries and states", isSystem: false,
+            [Perm.EmployeesRead, Perm.EmployeesWrite, Perm.CountriesRead, Perm.StatesRead, Perm.CitiesRead, Perm.CitiesWrite]);
+        var auditor = await EnsureRoleAsync(db, "Auditor", "Read-only access to employees", isSystem: false, [Perm.EmployeesRead]);
+        await EnsureRoleAsync(db, "User", "Default role of self-registered accounts", isSystem: false, [Perm.EmployeesRead]);
+
         var hasher = new PasswordHasher<AppUser>();
-        AppUser[] users =
+        (string Username, string DisplayName, Role Role)[] accounts =
         [
-            new() { Username = "admin", DisplayName = "Ada Admin", Email = "admin@example.test", Roles = "Administrator", Permissions = "*" },
-            new() { Username = "manager", DisplayName = "Max Manager", Email = "manager@example.test", Roles = "HR Manager",
-                    Permissions = ManagerPermissions },
-            new() { Username = "viewer", DisplayName = "Vera Viewer", Email = "viewer@example.test", Roles = "Auditor",
-                    Permissions = Perm.EmployeesRead },
+            ("admin", "Ada Admin", administrator),
+            ("manager", "Max Manager", hrManager),
+            ("viewer", "Vera Viewer", auditor),
         ];
-        foreach (var user in users)
+        foreach (var (username, displayName, role) in accounts)
         {
-            user.PasswordHash = hasher.HashPassword(user, user.Username);
+            var user = new AppUser { Username = username, DisplayName = displayName, Email = $"{username}@example.test" };
+            user.PasswordHash = hasher.HashPassword(user, username);
+            user.UserRoles.Add(new UserRole { Role = role });
+            db.Users.Add(user);
         }
 
-        db.Users.AddRange(users);
         await db.SaveChangesAsync();
         logger.LogWarning("Seeded development users admin/admin, manager/manager, viewer/viewer. Change or remove them before sharing this database.");
+    }
+
+    private static async Task<Role> EnsureRoleAsync(AppDbContext db, string name, string description, bool isSystem, string[] permissions)
+    {
+        var role = await db.Roles.Include(r => r.Permissions).FirstOrDefaultAsync(r => r.Name == name);
+        if (role is not null) return role;
+        role = new Role { Name = name, Description = description, IsSystem = isSystem };
+        foreach (var permission in permissions) role.Permissions.Add(new RolePermission { Permission = permission });
+        db.Roles.Add(role);
+        return role;
     }
 }
